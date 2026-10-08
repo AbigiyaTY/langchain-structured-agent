@@ -125,7 +125,7 @@ Upon execution, the agent will:
 
 Contributions, issues, and feature requests are welcome!
 
-Feel free to check the [issues page](https://www.google.com/search?q=../../issues/).
+Feel free to check the [issues page](https://www.google.com/search?q=../issues/).
 
 ---
 
