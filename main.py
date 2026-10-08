@@ -8,63 +8,65 @@ from tools import search_tool, wiki_tool, save_tool
 
 load_dotenv()
 
+# Structured response model for the agent's output
 class ResearchResponse(BaseModel):
     topic: str
     summary: str
     sources: list[str]
     tools_used: list[str]
-    
+
+# Environment variables
 api_key = os.getenv("AZURE_AI_API_KEY")
 project_endpoint = os.getenv("AZURE_AI_PROJECT_ENDPOINT")
 model = os.getenv("AZURE_AI_MODEL")
 
-if not api_key:
-    raise ValueError("AZURE_AI_API_KEY is missing from .env")
-
-if not project_endpoint:
-    raise ValueError("AZURE_AI_PROJECT_ENDPOINT is missing from .env")
-
-if not model:
-    raise ValueError("AZURE_AI_MODEL is missing from .env")
-
-
+# LLM
 llm = ChatOpenAI(
     api_key=api_key,
     base_url=f"{project_endpoint.rstrip('/')}/openai/v1/",
     model=model,
 )
 
+# Tools
 tools = [
     search_tool,
     wiki_tool,
     save_tool,
 ]
 
+# Agent
 agent = create_agent(
     model=llm,
     tools=tools,
     system_prompt=(
         "You are an expert research assistant. "
-        "Provide thorough and accurate research. "
-        "Return the final answer using the requested structured format."
+        "Use the available search and Wikipedia tools to gather "
+        "thorough and accurate information before answering. "
+        "After completing the research, you MUST use the save_tool "
+        "to save the final research result to research_output.txt. "
+        "Only after saving the research should you provide the final answer."
     ),
     response_format=ResearchResponse,
 )
 
-result = agent.invoke(
-    {
-        "messages": [
-            {
-                "role": "user",
-                "content": "What is the latest research on quantum computing?",
-            }
-        ]
-    }
-)
-
-research = result["structured_response"]
+# Run agent
 
 try:
+    result = agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": (
+                        "What is the latest research on quantum computing? "
+                        "Research this topic and save the completed research "
+                        "to the research_output.txt file."
+                    ),
+                }
+            ]
+        }
+    )
+
     research = result["structured_response"]
 
     print("\n" + "=" * 50)
@@ -75,16 +77,13 @@ try:
 
     print(f"\nSummary:\n{research.summary}")
 
-    print(f"\nSources:")
+    print("\nSources:")
     for source in research.sources:
         print(f"- {source}")
 
-    print(f"\nTools used:")
+    print("\nTools used:")
     for tool in research.tools_used:
         print(f"- {tool}")
 
-except KeyError:
-    print("Error: structured_response was not returned by the agent.")
-
 except Exception as e:
-    print(f"Error processing the response: {e}")
+    print(f"Error while running agent: {type(e).__name__}: {e}")
